@@ -478,9 +478,9 @@
   <!-- UPLOAD -->
   <div class="upload-zone" id="dropZone">
     <span class="upload-icon">🧾</span>
-    <div class="upload-title">Arrastrá tu recibo aquí</div>
-    <div class="upload-sub">o <strong onclick="document.getElementById('fileInput').click()">tomá una foto / elegí archivo</strong></div>
-    <input type="file" id="fileInput" accept="image/*" capture="environment">
+    <div class="upload-title">Tocá para subir tu recibo</div>
+    <div class="upload-sub">Podés sacar una foto o elegir desde la galería</div>
+    <input type="file" id="fileInput" accept="image/*">
   </div>
 
   <div class="preview-wrap" id="previewWrap">
@@ -664,8 +664,14 @@ const fileInput = document.getElementById('fileInput');
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
-dropZone.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+dropZone.addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
+
+// Use both 'change' and 'input' for broader mobile compatibility
+function handleFileSelect() {
+  if (fileInput.files && fileInput.files[0]) setFile(fileInput.files[0]);
+}
+fileInput.addEventListener('change', handleFileSelect);
+fileInput.addEventListener('input', handleFileSelect);
 
 function setFile(f) {
   currentFile = f;
