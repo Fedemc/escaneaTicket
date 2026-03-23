@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EscanéaTicket</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --surface: #ede8df;
+    --card: #ffffff;
+    --border: #d6cfc2;
+    --accent: #e8521a;
+    --accent2: #2b5ce6;
+    --text: #1a1714;
+    --muted: #8a8177;
+    --green: #1a7a4a;
+    --green-bg: #e8f5ee;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+  }
+
+  /* PAPER TEXTURE */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 780px; margin: 0 auto; padding: 28px 16px 80px; }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--text);
+  }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 2rem;
+    color: var(--text);
+    letter-spacing: -1.5px;
+    line-height: 1;
+  }
+  .logo em { color: var(--accent); font-style: normal; }
+  .tagline { font-size: 0.62rem; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+  .header-badge {
+    background: var(--accent);
+    color: white;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.65rem;
+    padding: 4px 10px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* CONFIG PANEL */
+  .config-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .config-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .config-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media(max-width:500px) { .config-grid { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .field input, .field select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent2); }
+  .field input[type="password"] { letter-spacing: 2px; }
+
+  .auth-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    margin-top: 4px;
+  }
+  .auth-row .field { flex: 1; }
+  .btn-auth {
+    padding: 9px 14px;
+    background: var(--accent2);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.2s;
+    flex-shrink: 0;
+    height: 36px;
+  }
+  .btn-auth:hover { opacity: 0.85; }
+  .auth-status {
+    font-size: 0.68rem;
+    margin-top: 8px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    display: none;
+  }
+  .auth-status.ok { display: block; background: var(--green-bg); color: var(--green); }
+  .auth-status.err { display: block; background: #fdecea; color: #c0392b; }
+
+  /* UPLOAD */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--card);
+    margin-bottom: 14px;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: #fff8f5;
+  }
+  .upload-icon { font-size: 2.4rem; display: block; margin-bottom: 10px; }
+  .upload-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
+  .upload-sub { color: var(--muted); font-size: 0.7rem; }
+  .upload-sub strong { color: var(--accent); cursor: pointer; }
+  #fileInput { display: none; }
+
+  .preview-wrap {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+  }
+  .preview-wrap.visible { display: flex; }
+  .preview-img { width: 56px; height: 56px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); flex-shrink: 0; }
+  .preview-info { flex: 1; min-width: 0; }
+  .preview-name { font-size: 0.75rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .preview-size { font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
+  .btn-remove { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 0.65rem; font-family: inherit; }
+  .btn-remove:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* SCAN BTN */
+  .btn-scan {
+    display: block; width: 100%;
+    padding: 15px;
+    background: var(--text);
+    color: var(--bg);
+    border: none; border-radius: 8px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 0.95rem;
+    cursor: pointer; letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .btn-scan:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-scan:not(:disabled):hover { background: var(--accent); }
+
+  /* LOADING */
+  .loading { display: none; align-items: center; gap: 10px; margin-top: 14px; font-size: 0.75rem; color: var(--muted); }
+  .loading.visible { display: flex; }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-msg { display: none; margin-top: 12px; padding: 10px 14px; background: #fdecea; border: 1px solid #f5c6c6; border-radius: 6px; color: #c0392b; font-size: 0.75rem; }
+  .error-msg.visible { display: block; }
+
+  /* RESULTS */
+  .results { margin-top: 28px; display: none; }
+  .results.visible { display: block; animation: fadeUp 0.35s ease; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* STORE BAR */
+  .store-bar {
+    background: var(--text);
+    color: var(--bg);
+    border-radius: 8px;
+    padding: 12px 18px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .store-field .lbl { font-size: 0.6rem; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px; }
+  .store-field .val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.9rem; margin-top: 2px; }
+
+  /* TABLE */
+  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: var(--surface); }
+  th { padding: 10px 14px; text-align: left; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-weight: 400; }
+  td { padding: 10px 14px; font-size: 0.76rem; border-top: 1px solid var(--border); }
+  tr:hover td { background: #fafaf8; }
+
+  .cat-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .cat-Comida        { background: #fff3e0; color: #e65100; }
+  .cat-Bebidas       { background: #e3f2fd; color: #1565c0; }
+  .cat-Limpieza      { background: #f3e5f5; color: #6a1b9a; }
+  .cat-Higiene       { background: #fce4ec; color: #880e4f; }
+  .cat-Hogar         { background: #e8f5e9; color: #2e7d32; }
+  .cat-Electrónica   { background: #e0f7fa; color: #006064; }
+  .cat-Mascotas      { background: #fff8e1; color: #f57f17; }
+  .cat-Otros         { background: #eceff1; color: #455a64; }
+
+  .price { font-weight: 700; font-family: 'Syne', sans-serif; }
+  .total-row td { background: var(--surface); font-family: 'Syne', sans-serif; font-weight: 700; }
+  .total-row .price { color: var(--accent); font-size: 1rem; }
+
+  /* SHEETS SECTION */
+  .sheets-preview {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+  .sheets-preview .sp-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.76rem;
+    padding: 5px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .sheets-preview .sp-row:last-child { border-bottom: none; }
+  .sp-label { color: var(--muted); }
+  .sp-val { font-weight: 700; font-family: 'Syne', sans-serif; }
+  .sp-sheet { 
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--green-bg); color: var(--green);
+    padding: 2px 10px; border-radius: 3px; font-size: 0.68rem; font-weight: 700;
+  }
+
+  .btn-send {
+    display: block; width: 100%;
+    padding: 14px;
+    background: var(--green);
+    color: white;
+    border: none; border-radius: 8px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800; font-size: 0.9rem;
+    cursor: pointer; letter-spacing: 1px;
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-send:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-send:not(:disabled):hover { background: #155d38; }
+
+  .success-msg {
+    display: none;
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: var(--green-bg);
+    border: 1px solid #a8d5bc;
+    border-radius: 6px;
+    color: var(--green);
+    font-size: 0.78rem;
+    text-align: center;
+  }
+  .success-msg.visible { display: block; }
+  .success-msg a { color: var(--green); font-weight: 700; }
+
+  /* TICKET ALIMENTACIÓN TOGGLE */
+  .ticket-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 14px;
+    transition: border-color 0.2s;
+  }
+  .ticket-toggle.is-ticket { border-color: var(--green); }
+  .ticket-toggle.is-ticket .toggle-label { background: var(--green); color: white; }
+
+  .toggle-label {
+    padding: 14px 18px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    background: var(--surface);
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-icon { font-size: 1.3rem; }
+  .toggle-body {
+    flex: 1;
+    padding: 14px 18px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .toggle-body strong { color: var(--text); display: block; font-family: 'Syne', sans-serif; font-size: 0.82rem; margin-bottom: 2px; }
+  .toggle-switch {
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  /* pill switch */
+  .pill {
+    width: 48px; height: 26px;
+    background: var(--border);
+    border-radius: 999px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .pill.on { background: var(--green); }
+  .pill::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 20px; height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .pill.on::after { transform: translateX(22px); }
+
+  /* EDIT ITEMS */
+  td[contenteditable="true"] { outline: none; background: #fffde7; }
+  td[contenteditable="true"]:focus { background: #fff9c4; box-shadow: inset 0 0 0 1px var(--accent2); }
+  .edit-hint { font-size: 0.62rem; color: var(--muted); margin-bottom: 8px; text-align: right; }
+
+  .items-actions { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .btn-sm {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    transition: all 0.15s;
+  }
+  .btn-sm:hover { background: var(--surface); }
+  .btn-sm.danger { border-color: #f5c6c6; color: #c0392b; }
+  .btn-sm.danger:hover { background: #fdecea; }
+
+  @media(max-width:580px) {
+    th:nth-child(3), td:nth-child(3),
+    th:nth-child(4), td:nth-child(4) { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <div class="logo">escanéa<em>ticket</em></div>
+      <div class="tagline">Escaneá · Clasificá · Volcá al Sheet</div>
+    </div>
+    <div class="header-badge">v2.0</div>
+  </header>
+
+  <!-- CONFIG -->
+  <div class="config-panel">
+    <div class="config-title">Configuración</div>
+    <div class="config-grid">
+      <div class="field">
+        <label>API Key Anthropic</label>
+        <input type="password" id="anthropicKey" placeholder="sk-ant-..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label>ID Google Sheet</label>
+        <input type="text" id="sheetId" value="1DQKMTcSF8Oa8QZ8vhC2CvjcXyZTa6vIgb3HsIh2wFOU" placeholder="ID del spreadsheet">
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <div class="config-title" style="margin-bottom:10px">Google OAuth</div>
+      <div class="auth-row">
+        <div class="field">
+          <label>Client ID (Google Cloud)</label>
+          <input type="text" id="gClientId" placeholder="xxxx.apps.googleusercontent.com">
+        </div>
+        <button class="btn-auth" onclick="startGoogleAuth()">🔑 Conectar Google</button>
+      </div>
+      <div class="auth-status" id="authStatus"></div>
+    </div>
+    <div style="margin-top:10px; font-size:0.65rem; color:var(--muted); line-height:1.6;">
+      💡 <strong>Primera vez:</strong> necesitás un Client ID de Google Cloud. 
+      <a href="#" onclick="showSetupGuide()" style="color:var(--accent2)">Ver guía rápida →</a>
+    </div>
+  </div>
+
+  <!-- SETUP GUIDE MODAL -->
+  <div id="setupGuide" style="display:none; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:20px; margin-bottom:16px; font-size:0.74rem; line-height:1.8;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <strong style="font-family:'Syne',sans-serif;">Guía: Conectar Google Sheets</strong>
+      <button onclick="document.getElementById('setupGuide').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:1rem;">✕</button>
+    </div>
+    <ol style="padding-left:18px; color:var(--text);">
+      <li>Entrá a <a href="https://console.cloud.google.com" target="_blank" style="color:var(--accent2)">console.cloud.google.com</a></li>
+      <li>Creá un proyecto nuevo (ej: "EscanéaTicket")</li>
+      <li>Activá la API: <strong>Google Sheets API</strong></li>
+      <li>Ir a <strong>Credenciales → Crear credencial → ID de cliente OAuth</strong></li>
+      <li>Tipo de aplicación: <strong>Aplicación web</strong></li>
+      <li>En "Orígenes autorizados" agregá: <code style="background:var(--surface);padding:1px 4px;border-radius:3px;">null</code> (para archivos locales)</li>
+      <li>En "URIs de redireccionamiento" agregá: <code style="background:var(--surface);padding:1px 4px;border-radius:3px;">https://escaneaticket.local</code> — y también añadí en la pantalla de consentimiento tu email como usuario de prueba</li>
+      <li>Copiá el <strong>Client ID</strong> y pegalo arriba</li>
+    </ol>
+    <div style="margin-top:12px; padding:10px; background:var(--green-bg); border-radius:4px; color:var(--green); font-size:0.68rem;">
+      ✅ Solo necesitás hacer esto una vez. El token se guarda en el navegador.
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="upload-zone" id="dropZone">
+    <span class="upload-icon">🧾</span>
+    <div class="upload-title">Arrastrá tu recibo aquí</div>
+    <div class="upload-sub">o <strong onclick="document.getElementById('fileInput').click()">tomá una foto / elegí archivo</strong></div>
+    <input type="file" id="fileInput" accept="image/*" capture="environment">
+  </div>
+
+  <div class="preview-wrap" id="previewWrap">
+    <img class="preview-img" id="previewImg" src="" alt="">
+    <div class="preview-info">
+      <div class="preview-name" id="previewName"></div>
+      <div class="preview-size" id="previewSize"></div>
+    </div>
+    <button class="btn-remove" onclick="clearFile()">✕</button>
+  </div>
+
+  <!-- TICKET ALIMENTACIÓN TOGGLE -->
+  <div class="ticket-toggle" id="ticketToggle">
+    <div class="toggle-label">
+      <span class="toggle-icon">🎟️</span>
+      <span>Ticket<br>Alim.</span>
+    </div>
+    <div class="toggle-body">
+      <strong id="toggleTitle">Pago en efectivo / tarjeta</strong>
+      <span id="toggleSub">Los gastos irán a <em>Gasto Variable</em></span>
+    </div>
+    <div class="toggle-switch">
+      <div class="pill" id="ticketPill" onclick="toggleTicket()"></div>
+    </div>
+  </div>
+
+  <button class="btn-scan" id="btnScan" disabled onclick="scanReceipt()">⚡ Analizar Recibo con IA</button>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <span id="loadingText">Analizando recibo...</span>
+  </div>
+  <div class="error-msg" id="errorMsg"></div>
+
+  <!-- RESULTS -->
+  <div class="results" id="results">
+    <div class="section-title" style="margin-top:28px">Resultado del escaneo</div>
+
+    <div class="store-bar" id="storeBar"></div>
+
+    <div class="items-actions">
+      <button class="btn-sm" onclick="addRow()">+ Agregar fila</button>
+      <button class="btn-sm danger" onclick="deleteSelected()">✕ Eliminar seleccionada</button>
+      <span style="flex:1"></span>
+      <span style="font-size:0.65rem;color:var(--muted);align-self:center;">Tocá una celda para editar</span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
+            <th>Artículo</th>
+            <th>Cant.</th>
+            <th>Precio unit.</th>
+            <th>Total</th>
+            <th>Categoría</th>
+          </tr>
+        </thead>
+        <tbody id="itemsBody"></tbody>
+      </table>
+    </div>
+
+    <!-- SHEETS PREVIEW -->
+    <div class="section-title">Enviar a Google Sheets</div>
+    <div class="sheets-preview" id="sheetsPreview"></div>
+
+    <button class="btn-send" id="btnSend" onclick="sendToSheets()">
+      <span>📊</span> Guardar en Google Sheets
+    </button>
+    <div class="success-msg" id="successMsg"></div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────
+let currentFile = null;
+let parsedData = null;
+let googleToken = null;
+let editableItems = [];
+
+const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const CATEGORIES = ['Comida','Bebidas','Limpieza','Higiene','Hogar','Electrónica','Mascotas','Otros'];
+
+// ─── TICKET TOGGLE ────────────────────────────────────
+let isTicketAlim = false;
+
+window.toggleTicket = function() {
+  isTicketAlim = !isTicketAlim;
+  const pill = document.getElementById('ticketPill');
+  const wrap = document.getElementById('ticketToggle');
+  const title = document.getElementById('toggleTitle');
+  const sub = document.getElementById('toggleSub');
+
+  pill.classList.toggle('on', isTicketAlim);
+  wrap.classList.toggle('is-ticket', isTicketAlim);
+
+  if (isTicketAlim) {
+    title.textContent = '¡Pagado con Ticket Alimentación!';
+    sub.innerHTML = 'Los gastos irán a <em><strong>Comida</strong></em>';
+  } else {
+    title.textContent = 'Pago en efectivo / tarjeta';
+    sub.innerHTML = 'Los gastos irán a <em>Gasto Variable</em>';
+  }
+
+  if (document.getElementById('results').classList.contains('visible') && parsedData) {
+    renderSheetsPreview(MONTHS_ES[new Date().getMonth()], parsedData?.store?.currency || '$');
+  }
+};
+
+// Persist config
+window.addEventListener('load', () => {
+  const saved = JSON.parse(localStorage.getItem('escanea_config') || '{}');
+  if (saved.anthropicKey) document.getElementById('anthropicKey').value = saved.anthropicKey;
+  if (saved.gClientId) document.getElementById('gClientId').value = saved.gClientId;
+  if (saved.sheetId) document.getElementById('sheetId').value = saved.sheetId;
+  if (saved.googleToken) {
+    googleToken = saved.googleToken;
+    showAuthOk('Token guardado (puede estar vencido — reconectá si falla)');
+  }
+  // Handle OAuth redirect
+  const hash = window.location.hash;
+  if (hash.includes('access_token')) {
+    const params = new URLSearchParams(hash.replace('#','?').slice(1) + hash.replace('#',''));
+    const token = new URLSearchParams(hash.substring(1)).get('access_token');
+    if (token) {
+      googleToken = token;
+      const cfg = JSON.parse(localStorage.getItem('escanea_config') || '{}');
+      cfg.googleToken = token;
+      localStorage.setItem('escanea_config', JSON.stringify(cfg));
+      showAuthOk('✅ Google conectado correctamente');
+      window.location.hash = '';
+    }
+  }
+});
+
+['anthropicKey','gClientId','sheetId'].forEach(id => {
+  document.getElementById(id).addEventListener('input', saveConfig);
+});
+
+function saveConfig() {
+  const cfg = {
+    anthropicKey: document.getElementById('anthropicKey').value,
+    gClientId: document.getElementById('gClientId').value,
+    sheetId: document.getElementById('sheetId').value,
+    googleToken
+  };
+  localStorage.setItem('escanea_config', JSON.stringify(cfg));
+}
+
+// ─── GOOGLE AUTH ──────────────────────────────────────
+function startGoogleAuth() {
+  const clientId = document.getElementById('gClientId').value.trim();
+  if (!clientId) { alert('Pegá tu Client ID de Google Cloud primero'); return; }
+  const scope = encodeURIComponent('https://www.googleapis.com/auth/spreadsheets');
+  const redirectUri = encodeURIComponent(window.location.href.split('#')[0]);
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}`;
+  window.location.href = url;
+}
+
+function showAuthOk(msg) {
+  const el = document.getElementById('authStatus');
+  el.textContent = msg;
+  el.className = 'auth-status ok';
+}
+function showAuthErr(msg) {
+  const el = document.getElementById('authStatus');
+  el.textContent = msg;
+  el.className = 'auth-status err';
+}
+
+function showSetupGuide() {
+  document.getElementById('setupGuide').style.display = 'block';
+  return false;
+}
+
+// ─── FILE HANDLING ────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+
+function setFile(f) {
+  currentFile = f;
+  document.getElementById('previewName').textContent = f.name;
+  document.getElementById('previewSize').textContent = (f.size/1024).toFixed(1)+' KB';
+  const r = new FileReader();
+  r.onload = e => document.getElementById('previewImg').src = e.target.result;
+  r.readAsDataURL(f);
+  document.getElementById('previewWrap').classList.add('visible');
+  document.getElementById('btnScan').disabled = false;
+  document.getElementById('results').classList.remove('visible');
+  hideError();
+}
+
+function clearFile() {
+  currentFile = null; fileInput.value = '';
+  document.getElementById('previewWrap').classList.remove('visible');
+  document.getElementById('btnScan').disabled = true;
+  document.getElementById('results').classList.remove('visible');
+}
+
+// ─── SCAN ─────────────────────────────────────────────
+async function scanReceipt() {
+  const apiKey = document.getElementById('anthropicKey').value.trim();
+  if (!apiKey) { showError('Ingresá tu API Key de Anthropic primero'); return; }
+  if (!currentFile) return;
+
+  hideError();
+  document.getElementById('loading').classList.add('visible');
+  document.getElementById('btnScan').disabled = true;
+  document.getElementById('results').classList.remove('visible');
+  document.getElementById('successMsg').classList.remove('visible');
+
+  const msgs = ['Analizando recibo...','Detectando artículos...','Clasificando gastos...','Calculando totales...'];
+  let i = 0;
+  const iv = setInterval(() => { i=(i+1)%msgs.length; document.getElementById('loadingText').textContent = msgs[i]; }, 1800);
+
+  try {
+    const base64 = await fileToBase64(currentFile);
+
+    const prompt = `Analizá este recibo de compra uruguayo/argentino. Respondé ÚNICAMENTE con JSON válido, sin texto extra, sin backticks:
+
+{
+  "store": { "name": "nombre o null", "date": "DD/MM/YYYY o null", "currency": "$ o UYU o ARS, etc" },
+  "items": [
+    {
+      "name": "nombre del producto",
+      "quantity": número,
+      "unit_price": número,
+      "total_price": número,
+      "category": "Comida|Bebidas|Limpieza|Higiene|Hogar|Electrónica|Mascotas|Otros",
+      "sheet_section": "Gasto Variable|Comida"
+    }
+  ],
+  "total": número o null
+}
+
+Reglas para sheet_section:
+- "Comida": carnes, fiambres, verduras, frutas, pan, lácteos, pastas, arroz, conservas, snacks, comida preparada
+- "Gasto Variable": bebidas, limpieza, higiene personal, hogar, mascotas, electrónica, otros
+
+Reglas de category: Comida=alimentos en general, Bebidas=líquidos para tomar, Limpieza=productos de limpieza hogar, Higiene=cuidado personal, Hogar=artículos para el hogar, Mascotas=animales, Otros=resto`;
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: currentFile.type || 'image/jpeg', data: base64 } },
+          { type: 'text', text: prompt }
+        ]}]
+      })
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || 'Error API');
+
+    const text = data.content.map(b => b.text||'').join('').trim().replace(/```json|```/g,'').trim();
+    parsedData = JSON.parse(text);
+    editableItems = parsedData.items.map((it,idx) => ({...it, _id: idx}));
+    renderResults();
+  } catch(err) {
+    showError('Error: '+err.message);
+  } finally {
+    clearInterval(iv);
+    document.getElementById('loading').classList.remove('visible');
+    document.getElementById('btnScan').disabled = false;
+  }
+}
+
+// ─── RENDER ───────────────────────────────────────────
+function renderResults() {
+  const { store } = parsedData;
+  const currency = store?.currency || '$';
+  const today = new Date();
+  const sheetName = MONTHS_ES[today.getMonth()];
+
+  // Store bar
+  document.getElementById('storeBar').innerHTML = `
+    <div class="store-field"><div class="lbl">Comercio</div><div class="val">${store?.name || '—'}</div></div>
+    <div class="store-field"><div class="lbl">Fecha</div><div class="val">${store?.date || today.toLocaleDateString('es-UY')}</div></div>
+    <div class="store-field"><div class="lbl">Moneda</div><div class="val">${currency}</div></div>
+    <div class="store-field"><div class="lbl">Hoja destino</div><div class="val"><span class="sp-sheet">📋 ${sheetName}</span></div></div>
+  `;
+
+  renderTable(currency);
+  renderSheetsPreview(sheetName, currency);
+  document.getElementById('results').classList.add('visible');
+}
+
+function renderTable(currency) {
+  currency = currency || parsedData?.store?.currency || '$';
+  const body = document.getElementById('itemsBody');
+  body.innerHTML = editableItems.map(it => `
+    <tr data-id="${it._id}">
+      <td><input type="checkbox" class="row-check"></td>
+      <td contenteditable="true" data-field="name">${it.name}</td>
+      <td contenteditable="true" data-field="quantity">${it.quantity}</td>
+      <td contenteditable="true" data-field="unit_price">${(it.unit_price||0).toFixed(2)}</td>
+      <td contenteditable="true" data-field="total_price" class="price">${(it.total_price||0).toFixed(2)}</td>
+      <td>
+        <select onchange="updateItemField(${it._id},'category',this.value)">
+          ${CATEGORIES.map(c => `<option value="${c}" ${c===it.category?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </td>
+    </tr>
+  `).join('') + `
+    <tr style="background:var(--surface)">
+      <td></td><td colspan="3" style="text-align:right;color:var(--muted);font-size:0.7rem;font-family:'Syne',sans-serif;">TOTAL</td>
+      <td class="price" style="color:var(--accent)">${currency} ${editableItems.reduce((s,i)=>s+(parseFloat(i.total_price)||0),0).toFixed(2)}</td>
+      <td></td>
+    </tr>
+  `;
+
+  body.querySelectorAll('[contenteditable]').forEach(cell => {
+    cell.addEventListener('blur', () => {
+      const row = cell.closest('tr');
+      const id = parseInt(row.dataset.id);
+      const field = cell.dataset.field;
+      const item = editableItems.find(i => i._id === id);
+      if (item) {
+        const val = cell.textContent.trim();
+        item[field] = ['quantity','unit_price','total_price'].includes(field) ? parseFloat(val)||0 : val;
+      }
+    });
+  });
+}
+
+function renderSheetsPreview(sheetName, currency) {
+  const isTicket = document.getElementById('ticketPill').classList.contains('on');
+  const section = isTicket ? 'Comida' : 'Gasto Variable';
+  const total = editableItems.reduce((s,i)=>s+(parseFloat(i.total_price)||0),0);
+  const date = parsedData.store?.date || new Date().toLocaleDateString('es-UY');
+
+  document.getElementById('sheetsPreview').innerHTML = `
+    <div class="sp-row">
+      <span class="sp-label">Hoja destino</span>
+      <span class="sp-sheet">📋 ${sheetName}</span>
+    </div>
+    <div class="sp-row">
+      <span class="sp-label">Sección destino</span>
+      <span class="sp-val" style="color:${isTicket ? 'var(--green)' : 'var(--accent2)'}">
+        ${isTicket ? '🎟️ Comida' : '💳 Gasto Variable'}
+      </span>
+    </div>
+    <div class="sp-row">
+      <span class="sp-label">Artículos a guardar</span>
+      <span class="sp-val">${editableItems.length} ítems → ${currency} ${total.toFixed(2)}</span>
+    </div>
+    <div class="sp-row">
+      <span class="sp-label">Fecha en sheet</span>
+      <span class="sp-val">${date}</span>
+    </div>
+  `;
+}
+
+
+
+
+function updateItemField(id, field, value) {
+  const item = editableItems.find(i => i._id === id);
+  if (item) item[field] = value;
+}
+
+function addRow() {
+  const newId = Date.now();
+  editableItems.push({ _id: newId, name: 'Nuevo artículo', quantity: 1, unit_price: 0, total_price: 0, category: 'Otros', sheet_section: 'Gasto Variable' });
+  renderTable(parsedData?.store?.currency || '$');
+  renderSheetsPreview(MONTHS_ES[new Date().getMonth()], parsedData?.store?.currency || '$');
+}
+
+function toggleAll(cb) {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = cb.checked);
+}
+
+function deleteSelected() {
+  const checked = [...document.querySelectorAll('.row-check:checked')].map(c => parseInt(c.closest('tr').dataset.id));
+  if (!checked.length) return;
+  editableItems = editableItems.filter(i => !checked.includes(i._id));
+  renderTable(parsedData?.store?.currency || '$');
+  renderSheetsPreview(MONTHS_ES[new Date().getMonth()], parsedData?.store?.currency || '$');
+}
+
+// ─── SEND TO SHEETS ───────────────────────────────────
+async function sendToSheets() {
+  if (!googleToken) { showError('Primero conectá tu cuenta de Google (arriba)'); return; }
+
+  const sheetId = document.getElementById('sheetId').value.trim();
+  const today = new Date();
+  const sheetName = MONTHS_ES[today.getMonth()];
+  const date = parsedData?.store?.date || today.toLocaleDateString('es-UY');
+  const currency = parsedData?.store?.currency || '$';
+
+  document.getElementById('btnSend').disabled = true;
+  document.getElementById('btnSend').innerHTML = '<div class="spinner" style="border-top-color:white;width:14px;height:14px"></div> Enviando...';
+  document.getElementById('successMsg').classList.remove('visible');
+  hideError();
+
+  try {
+    // Get sheet data to find next empty rows
+    const metaResp = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(sheetName+'!A1:L100')}`,
+      { headers: { Authorization: 'Bearer '+googleToken } }
+    );
+    if (!metaResp.ok) {
+      const err = await metaResp.json();
+      if (metaResp.status === 401) { googleToken = null; saveConfig(); showAuthErr('Token vencido. Reconectá Google.'); }
+      throw new Error(err.error?.message || 'Error leyendo sheet');
+    }
+    const meta = await metaResp.json();
+    const rows = meta.values || [];
+
+    const updates = [];
+    // All items go to the same section based on toggle
+    const section = isTicketAlim ? 'Comida' : 'Gasto Variable';
+    let nextRow;
+
+    if (section === 'Comida') {
+      nextRow = findNextEmptyInSection(rows, 'Comida', 23);
+      editableItems.forEach((it, idx) => {
+        updates.push({
+          range: `${sheetName}!F${nextRow+idx}:H${nextRow+idx}`,
+          values: [[it.name, it.total_price, date]]
+        });
+      });
+    } else {
+      nextRow = findNextEmptyInSection(rows, 'Gasto Variable', 23);
+      editableItems.forEach((it, idx) => {
+        updates.push({
+          range: `${sheetName}!A${nextRow+idx}:D${nextRow+idx}`,
+          values: [[it.name, it.category, it.total_price, date]]
+        });
+      });
+    }
+
+    if (!updates.length) throw new Error('No hay ítems para enviar');
+
+    const batchResp = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values:batchUpdate`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer '+googleToken },
+        body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: updates })
+      }
+    );
+
+    if (!batchResp.ok) {
+      const err = await batchResp.json();
+      throw new Error(err.error?.message || 'Error escribiendo sheet');
+    }
+
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=572011360`;
+    document.getElementById('successMsg').innerHTML = `✅ ${editableItems.length} artículos guardados en la hoja <strong>${sheetName}</strong>. <a href="${sheetUrl}" target="_blank">Abrir Sheet →</a>`;
+    document.getElementById('successMsg').classList.add('visible');
+
+  } catch(err) {
+    showError('Error al guardar: '+err.message);
+  } finally {
+    document.getElementById('btnSend').disabled = false;
+    document.getElementById('btnSend').innerHTML = '<span>📊</span> Guardar en Google Sheets';
+  }
+}
+
+function findNextEmptyInSection(rows, sectionHeader, startHint) {
+  // Find header row of section
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i][0] && rows[i][0].toString().toLowerCase().includes(sectionHeader.toLowerCase().split(' ')[0])) {
+      // Find first empty row after header
+      for (let j = i+1; j < rows.length; j++) {
+        if (!rows[j] || !rows[j][0] || rows[j][0].toString().trim() === '') {
+          return j + 1; // 1-indexed
+        }
+      }
+      return rows.length + 1;
+    }
+  }
+  return startHint;
+}
+
+// ─── UTILS ────────────────────────────────────────────
+function fileToBase64(file) {
+  return new Promise((res,rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result.split(',')[1]);
+    r.onerror = () => rej(new Error('Error leyendo archivo'));
+    r.readAsDataURL(file);
+  });
+}
+function showError(msg) { const el = document.getElementById('errorMsg'); el.textContent = msg; el.classList.add('visible'); }
+function hideError() { document.getElementById('errorMsg').classList.remove('visible'); }
+</script>
+</body>
+</html>
