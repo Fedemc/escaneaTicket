@@ -594,7 +594,12 @@ let googleToken = null;
 let editableItems = [];
 
 const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const CATEGORIES = ['Comida','Bebidas','Limpieza','Higiene','Hogar','Electrónica','Mascotas','Otros'];
+const CATEGORIES = ['Comida','Bebidas','Limpieza','Higiene','Hogar','Electrónica','Mascotas','Ropa','Otros'];
+
+// Load saved custom categories
+let customCategories = JSON.parse(localStorage.getItem('escanea_categories') || '[]');
+function allCategories() { return [...CATEGORIES, ...customCategories.filter(c => !CATEGORIES.includes(c))]; }
+function saveCustomCategories() { localStorage.setItem('escanea_categories', JSON.stringify(customCategories)); }
 
 // ─── TICKET TOGGLE ────────────────────────────────────
 let isTicketAlim = false;
@@ -828,8 +833,9 @@ function renderTable(currency) {
       <td contenteditable="true" data-field="unit_price">${(it.unit_price||0).toFixed(2)}</td>
       <td contenteditable="true" data-field="total_price" class="price">${(it.total_price||0).toFixed(2)}</td>
       <td>
-        <select onchange="updateItemField(${it._id},'category',this.value)">
-          ${CATEGORIES.map(c => `<option value="${c}" ${c===it.category?'selected':''}>${c}</option>`).join('')}
+        <select onchange="handleCategoryChange(this, ${it._id})">
+          ${allCategories().map(c => `<option value="${c}" ${c===it.category?'selected':''}>${c}</option>`).join('')}
+          <option value="__new__">+ Nueva categoría...</option>
         </select>
       </td>
     </tr>
@@ -885,6 +891,27 @@ function renderSheetsPreview(sheetName, currency) {
 
 
 
+
+function handleCategoryChange(select, id) {
+  if (select.value === '__new__') {
+    const nueva = prompt('Nombre de la nueva categoría:');
+    if (nueva && nueva.trim()) {
+      const cat = nueva.trim();
+      if (!allCategories().includes(cat)) {
+        customCategories.push(cat);
+        saveCustomCategories();
+      }
+      updateItemField(id, 'category', cat);
+      renderTable(parsedData?.store?.currency || '$');
+    } else {
+      // Revert to previous value
+      const item = editableItems.find(i => i._id === id);
+      select.value = item?.category || 'Otros';
+    }
+  } else {
+    updateItemField(id, 'category', select.value);
+  }
+}
 
 function updateItemField(id, field, value) {
   const item = editableItems.find(i => i._id === id);
