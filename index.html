@@ -753,7 +753,7 @@ Reglas de category: Comida=alimentos en general, Bebidas=líquidos para tomar, L
 
     const text = data.content.map(b => b.text||'').join('').trim().replace(/```json|```/g,'').trim();
     parsedData = JSON.parse(text);
-    editableItems = parsedData.items.map((it,idx) => ({...it, _id: idx}));
+    editableItems = parsedData.items.map((it,idx) => ({...it, _id: idx, name: toTitleCase(it.name)}));
     renderResults();
   } catch(err) {
     showError('Error: '+err.message);
@@ -985,6 +985,11 @@ function findNextEmptyInCol(rows, sectionHeader) {
 }
 
 // ─── UTILS ────────────────────────────────────────────
+function toTitleCase(str) {
+  if (!str) return str;
+  return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function fileToBase64(file) {
   return new Promise((res,rej) => {
     const r = new FileReader();
