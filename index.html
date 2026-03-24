@@ -141,8 +141,34 @@
   .auth-status.ok { display: block; background: var(--green-bg); color: var(--green); }
   .auth-status.err { display: block; background: #fdecea; color: #c0392b; }
 
-  /* UPLOAD */
-  .upload-zone {
+  /* UPLOAD BUTTONS */
+  .upload-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .btn-upload {
+    padding: 20px 12px;
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+    color: var(--text);
+  }
+  .btn-upload span { font-size: 2rem; }
+  .btn-upload:hover { border-color: var(--accent); background: #fff8f5; }
+  .btn-upload-secondary:hover { border-color: var(--accent2); background: #f5f8ff; }
+
+  /* UPLOAD ZONE (kept for drag support on desktop) */
     border: 2px dashed var(--border);
     border-radius: 8px;
     padding: 36px 20px;
@@ -476,12 +502,16 @@
   </div>
 
   <!-- UPLOAD -->
-  <div class="upload-zone" id="dropZone">
-    <span class="upload-icon">🧾</span>
-    <div class="upload-title">Tocá para subir tu recibo</div>
-    <div class="upload-sub">Podés sacar una foto o elegir desde la galería</div>
-    <input type="file" id="fileInput" accept="image/*">
+  <div class="upload-btns">
+    <button class="btn-upload" onclick="document.getElementById('cameraInput').click()">
+      <span>📷</span> Sacar foto
+    </button>
+    <button class="btn-upload btn-upload-secondary" onclick="document.getElementById('fileInput').click()">
+      <span>🖼️</span> Elegir de galería
+    </button>
   </div>
+  <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+  <input type="file" id="fileInput" accept="image/*" style="display:none">
 
   <div class="preview-wrap" id="previewWrap">
     <img class="preview-img" id="previewImg" src="" alt="">
@@ -551,8 +581,9 @@
     <button class="btn-send" id="btnSend" onclick="sendToSheets()">
       <span>📊</span> Guardar en Google Sheets
     </button>
-    <div class="success-msg" id="successMsg"></div>
   </div>
+
+  <div class="success-msg" id="successMsg"></div>
 </div>
 
 <script>
@@ -658,20 +689,17 @@ function showSetupGuide() {
 }
 
 // ─── FILE HANDLING ────────────────────────────────────
-const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
+const cameraInput = document.getElementById('cameraInput');
 
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
-dropZone.addEventListener('click', e => { e.stopPropagation(); fileInput.click(); });
-
-// Use both 'change' and 'input' for broader mobile compatibility
 function handleFileSelect() {
-  if (fileInput.files && fileInput.files[0]) setFile(fileInput.files[0]);
+  const f = (this.files && this.files[0]);
+  if (f) { setFile(f); this.value = ''; }
 }
 fileInput.addEventListener('change', handleFileSelect);
 fileInput.addEventListener('input', handleFileSelect);
+cameraInput.addEventListener('change', handleFileSelect);
+cameraInput.addEventListener('input', handleFileSelect);
 
 function setFile(f) {
   currentFile = f;
@@ -953,6 +981,9 @@ async function sendToSheets() {
     const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit#gid=572011360`;
     document.getElementById('successMsg').innerHTML = `✅ ${editableItems.length} artículos guardados en la hoja <strong>${sheetName}</strong>. <a href="${sheetUrl}" target="_blank">Abrir Sheet →</a>`;
     document.getElementById('successMsg').classList.add('visible');
+    // Reset for next scan
+    clearFile();
+    document.getElementById('results').classList.remove('visible');
 
   } catch(err) {
     showError('Error al guardar: '+err.message);
@@ -963,25 +994,24 @@ async function sendToSheets() {
 }
 
 function findNextEmptyInCol(rows, sectionHeader) {
-  // Find the header row
+  const headerLower = sectionHeader.toLowerCase();
   for (let i = 0; i < rows.length; i++) {
-    if (rows[i][0] && rows[i][0].toString().toLowerCase().includes(sectionHeader.toLowerCase().split(' ')[0])) {
-      // Find first empty row after header
+    if (rows[i][0] && rows[i][0].toString().toLowerCase() === headerLower) {
       for (let j = i + 1; j < rows.length; j++) {
         if (!rows[j] || !rows[j][0] || rows[j][0].toString().trim() === '') {
-          return j + 1; // 1-indexed for Sheets API
+          return j + 1;
         }
       }
       return rows.length + 1;
     }
   }
-  // Fallback: return after last row with data
+  // Fallback: after last row with data
   for (let i = rows.length - 1; i >= 0; i--) {
     if (rows[i] && rows[i][0] && rows[i][0].toString().trim() !== '') {
-      return i + 2; // 1-indexed + 1 for next empty
+      return i + 2;
     }
   }
-  return 24; // safe default
+  return 24;
 }
 
 // ─── UTILS ────────────────────────────────────────────
