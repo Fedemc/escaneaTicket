@@ -636,7 +636,7 @@ function startGoogleAuth() {
   const clientId = document.getElementById('gClientId').value.trim();
   if (!clientId) { alert('Pegá tu Client ID de Google Cloud primero'); return; }
   const scope = encodeURIComponent('https://www.googleapis.com/auth/spreadsheets');
-  const redirectUri = encodeURIComponent(window.location.href.split('#')[0]);
+  const redirectUri = encodeURIComponent('https://fedemc.github.io/escaneaTicket');
   const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}`;
   window.location.href = url;
 }
@@ -773,11 +773,16 @@ function renderResults() {
 
   // Store bar
   document.getElementById('storeBar').innerHTML = `
-    <div class="store-field"><div class="lbl">Comercio</div><div class="val">${store?.name || '—'}</div></div>
+    <div class="store-field"><div class="lbl">Comercio</div><div class="val" contenteditable="true" id="editStoreName" style="outline:none;border-bottom:1px dashed rgba(255,255,255,0.4);min-width:80px;cursor:text;" title="Tocá para editar">${store?.name || '—'}</div></div>
     <div class="store-field"><div class="lbl">Fecha</div><div class="val">${store?.date || today.toLocaleDateString('es-UY')}</div></div>
     <div class="store-field"><div class="lbl">Moneda</div><div class="val">${currency}</div></div>
     <div class="store-field"><div class="lbl">Hoja destino</div><div class="val"><span class="sp-sheet">📋 ${sheetName}</span></div></div>
   `;
+  // Sync edits back to parsedData
+  document.getElementById('editStoreName').addEventListener('blur', function() {
+    if (!parsedData.store) parsedData.store = {};
+    parsedData.store.name = this.textContent.trim();
+  });
 
   renderTable(currency);
   renderSheetsPreview(sheetName, currency);
