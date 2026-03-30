@@ -775,7 +775,7 @@ Reglas de category: Comida=alimentos en general, Bebidas=líquidos para tomar, L
         model: 'claude-sonnet-4-20250514',
         max_tokens: 4000,
         messages: [{ role: 'user', content: [
-          { type: 'image', source: { type: 'base64', media_type: currentFile.type || 'image/jpeg', data: base64 } },
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
           { type: 'text', text: prompt }
         ]}]
       })
@@ -1048,11 +1048,28 @@ function toTitleCase(str) {
 }
 
 function fileToBase64(file) {
-  return new Promise((res,rej) => {
-    const r = new FileReader();
-    r.onload = e => res(e.target.result.split(',')[1]);
-    r.onerror = () => rej(new Error('Error leyendo archivo'));
-    r.readAsDataURL(file);
+  return new Promise((res, rej) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      // Scale down if too large, max 2000px on longest side
+      const MAX = 2000;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+        else { width = Math.round(width * MAX / height); height = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      // Compress as JPEG quality 0.85
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      res(dataUrl.split(',')[1]);
+    };
+    img.onerror = () => rej(new Error('Error leyendo imagen'));
+    img.src = url;
   });
 }
 function showError(msg) { const el = document.getElementById('errorMsg'); el.textContent = msg; el.classList.add('visible'); }
